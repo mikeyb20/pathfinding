@@ -32,6 +32,9 @@ _deps/
 # Cache
 .cache/
 
+# ImGui
+imgui.ini
+
 # OS
 .DS_Store
 Thumbs.db
