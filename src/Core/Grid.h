@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <nlohmann/json.hpp>
 #include "Core/Types.h"
 #include "Core/GridCell.h"
 
@@ -19,6 +20,9 @@ public:
 
     void setTerrain(int x, int y, TerrainType terrain);
     void clear();
+
+    nlohmann::json toJson() const;
+    void fromJson(const nlohmann::json& j);
 
     // Returns walkable neighbors (4-directional)
     std::vector<Vec2i> getNeighbors4(int x, int y) const;

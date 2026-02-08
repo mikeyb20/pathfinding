@@ -47,6 +47,52 @@ void Grid::clear() {
     }
 }
 
+nlohmann::json Grid::toJson() const {
+    nlohmann::json j;
+    j["width"] = width_;
+    j["height"] = height_;
+
+    nlohmann::json terrain = nlohmann::json::array();
+    for (int y = 0; y < height_; ++y) {
+        for (int x = 0; x < width_; ++x) {
+            terrain.push_back(terrainToString(cells_[index(x, y)].terrain));
+        }
+    }
+    j["terrain"] = std::move(terrain);
+    return j;
+}
+
+void Grid::fromJson(const nlohmann::json& j) {
+    int w = j.at("width").get<int>();
+    int h = j.at("height").get<int>();
+
+    // Resize if dimensions changed
+    if (w != width_ || h != height_) {
+        width_ = w;
+        height_ = h;
+        cells_.resize(w * h);
+        for (int cy = 0; cy < height_; ++cy) {
+            for (int cx = 0; cx < width_; ++cx) {
+                auto& cell = cells_[index(cx, cy)];
+                cell.x = cx;
+                cell.y = cy;
+            }
+        }
+    }
+
+    clear();
+
+    const auto& terrain = j.at("terrain");
+    for (int cy = 0; cy < height_; ++cy) {
+        for (int cx = 0; cx < width_; ++cx) {
+            int idx = cy * width_ + cx;
+            if (idx < static_cast<int>(terrain.size())) {
+                setTerrain(cx, cy, terrainFromString(terrain[idx].get<std::string>()));
+            }
+        }
+    }
+}
+
 std::vector<Vec2i> Grid::getNeighbors4(int x, int y) const {
     std::vector<Vec2i> neighbors;
     neighbors.reserve(4);

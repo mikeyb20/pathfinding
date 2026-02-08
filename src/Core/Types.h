@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <limits>
+#include <string>
 
 struct Vec2i {
     int x = 0;
@@ -33,4 +34,23 @@ inline float terrainCost(TerrainType t) {
         case TerrainType::Forest: return 2.0f;
     }
     return 1.0f;
+}
+
+inline const char* terrainToString(TerrainType t) {
+    switch (t) {
+        case TerrainType::Open:   return "open";
+        case TerrainType::Wall:   return "wall";
+        case TerrainType::Water:  return "water";
+        case TerrainType::Mud:    return "mud";
+        case TerrainType::Forest: return "forest";
+    }
+    return "open";
+}
+
+inline TerrainType terrainFromString(const std::string& s) {
+    if (s == "wall")   return TerrainType::Wall;
+    if (s == "water")  return TerrainType::Water;
+    if (s == "mud")    return TerrainType::Mud;
+    if (s == "forest") return TerrainType::Forest;
+    return TerrainType::Open;
 }

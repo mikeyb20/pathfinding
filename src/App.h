@@ -11,6 +11,9 @@
 #include "Visualization/Renderer.h"
 #include "Visualization/AlgorithmAnimator.h"
 #include "Visualization/UIOverlay.h"
+#include "MapEditor/MapEditor.h"
+#include "Benchmarking/BenchmarkRunner.h"
+#include "Scenarios/ScenarioManager.h"
 
 class App {
 public:
@@ -24,6 +27,7 @@ private:
     void draw();
     void switchAlgorithm(int index);
     void generateTestMap();
+    void ensureStartGoalWalkable();
 
     static constexpr int WINDOW_WIDTH = 1280;
     static constexpr int WINDOW_HEIGHT = 720;
@@ -50,4 +54,9 @@ private:
 
     Vec2i start_{1, 1};
     Vec2i goal_{GRID_WIDTH - 2, GRID_HEIGHT - 2};
+
+    MapEditor mapEditor_;
+    BenchmarkRunner benchRunner_;
+    ScenarioManager scenarioMgr_;
+    MapMetadata mapMeta_;
 };

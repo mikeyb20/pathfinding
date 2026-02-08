@@ -18,18 +18,10 @@ void UIOverlay::init() {
 void UIOverlay::shutdown() {
 }
 
-void UIOverlay::draw(const std::string& algorithmName, const SearchState& state,
-                     const PathResult& lastResult, AlgorithmAnimator& animator,
-                     const std::vector<IPathfinder*>& algorithms, int currentIndex,
-                     TerrainType currentBrush) {
-    ImGui::SetNextWindowPos(ImVec2(1000, 0));
-    ImGui::SetNextWindowSize(ImVec2(280, 720));
-
-    ImGui::Begin("Pathfinder Stats", nullptr,
-        ImGuiWindowFlags_NoMove |
-        ImGuiWindowFlags_NoResize |
-        ImGuiWindowFlags_NoCollapse);
-
+void UIOverlay::drawPathfindingTab(const std::string& algorithmName, const SearchState& state,
+                                   const PathResult& lastResult, AlgorithmAnimator& animator,
+                                   const std::vector<IPathfinder*>& algorithms, int currentIndex,
+                                   TerrainType currentBrush) {
     // Algorithm combo box
     if (ImGui::BeginCombo("Algorithm", algorithmName.c_str())) {
         for (int i = 0; i < static_cast<int>(algorithms.size()); ++i) {
@@ -99,6 +91,53 @@ void UIOverlay::draw(const std::string& algorithmName, const SearchState& state,
         "LMB: Draw brush  |  RMB: Erase\n"
         "1: Wall  2: Water  3: Mud  4: Forest  5: Open"
     );
+}
+
+void UIOverlay::draw(const std::string& algorithmName, const SearchState& state,
+                     const PathResult& lastResult, AlgorithmAnimator& animator,
+                     const std::vector<IPathfinder*>& algorithms, int currentIndex,
+                     TerrainType currentBrush,
+                     MapEditor& mapEditor, MapMetadata& mapMeta,
+                     BenchmarkRunner& benchRunner, ScenarioManager& scenarioMgr,
+                     Grid& grid, Vec2i& start, Vec2i& goal) {
+    ImGui::SetNextWindowPos(ImVec2(1000, 0));
+    ImGui::SetNextWindowSize(ImVec2(280, 720));
+
+    ImGui::Begin("Pathfinder", nullptr,
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoCollapse);
+
+    if (ImGui::BeginTabBar("MainTabs")) {
+        if (ImGui::BeginTabItem("Search")) {
+            drawPathfindingTab(algorithmName, state, lastResult, animator,
+                               algorithms, currentIndex, currentBrush);
+            ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem("Map")) {
+            if (mapEditor.drawUI(grid, mapMeta)) {
+                mapChanged_ = true;
+            }
+            ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem("Bench")) {
+            if (benchRunner.drawUI()) {
+                benchmarkRequested_ = true;
+            }
+            ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem("Scenarios")) {
+            if (scenarioMgr.drawUI(grid, start, goal, algorithms)) {
+                mapChanged_ = true;
+            }
+            ImGui::EndTabItem();
+        }
+
+        ImGui::EndTabBar();
+    }
 
     ImGui::End();
 }

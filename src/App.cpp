@@ -1,6 +1,7 @@
 #include "App.h"
 #include "raylib.h"
 #include "rlImGui.h"
+#include "imgui.h"
 
 void App::init() {
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Pathfinding Visualizer");
@@ -13,6 +14,9 @@ void App::init() {
 
     animator_.setPathfinder(currentPathfinder_);
     overlay_.init();
+    scenarioMgr_.init();
+    mapMeta_.start = start_;
+    mapMeta_.goal = goal_;
     generateTestMap();
 }
 
@@ -48,79 +52,88 @@ void App::handleInput() {
         overlay_.clearAlgorithmRequest();
     }
 
+    bool imguiMouse = ImGui::GetIO().WantCaptureMouse;
+    bool imguiKeyboard = ImGui::GetIO().WantCaptureKeyboard;
+
     // Terrain brush keybinds
-    if (IsKeyPressed(KEY_ONE))   currentBrush_ = TerrainType::Wall;
-    if (IsKeyPressed(KEY_TWO))   currentBrush_ = TerrainType::Water;
-    if (IsKeyPressed(KEY_THREE)) currentBrush_ = TerrainType::Mud;
-    if (IsKeyPressed(KEY_FOUR))  currentBrush_ = TerrainType::Forest;
-    if (IsKeyPressed(KEY_FIVE))  currentBrush_ = TerrainType::Open;
+    if (!imguiKeyboard) {
+        if (IsKeyPressed(KEY_ONE))   currentBrush_ = TerrainType::Wall;
+        if (IsKeyPressed(KEY_TWO))   currentBrush_ = TerrainType::Water;
+        if (IsKeyPressed(KEY_THREE)) currentBrush_ = TerrainType::Mud;
+        if (IsKeyPressed(KEY_FOUR))  currentBrush_ = TerrainType::Forest;
+        if (IsKeyPressed(KEY_FIVE))  currentBrush_ = TerrainType::Open;
+    }
 
-    // S + left click: set start position
-    if (IsKeyDown(KEY_S) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-        Vec2i cell = coords_.screenToGrid(
-            static_cast<float>(GetMouseX()),
-            static_cast<float>(GetMouseY())
-        );
-        if (grid_.inBounds(cell.x, cell.y) && grid_.isWalkable(cell.x, cell.y) && cell != goal_) {
-            start_ = cell;
+    if (!imguiMouse) {
+        // S + left click: set start position
+        if (IsKeyDown(KEY_S) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+            Vec2i cell = coords_.screenToGrid(
+                static_cast<float>(GetMouseX()),
+                static_cast<float>(GetMouseY())
+            );
+            if (grid_.inBounds(cell.x, cell.y) && grid_.isWalkable(cell.x, cell.y) && cell != goal_) {
+                start_ = cell;
+            }
+        }
+        // G + left click: set goal position
+        else if (IsKeyDown(KEY_G) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+            Vec2i cell = coords_.screenToGrid(
+                static_cast<float>(GetMouseX()),
+                static_cast<float>(GetMouseY())
+            );
+            if (grid_.inBounds(cell.x, cell.y) && grid_.isWalkable(cell.x, cell.y) && cell != start_) {
+                goal_ = cell;
+            }
+        }
+        // Left click: paint terrain with current brush
+        else if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+            Vec2i cell = coords_.screenToGrid(
+                static_cast<float>(GetMouseX()),
+                static_cast<float>(GetMouseY())
+            );
+            if (grid_.inBounds(cell.x, cell.y) && cell != start_ && cell != goal_) {
+                grid_.setTerrain(cell.x, cell.y, currentBrush_);
+            }
+        }
+
+        // Right click: erase to open
+        if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
+            Vec2i cell = coords_.screenToGrid(
+                static_cast<float>(GetMouseX()),
+                static_cast<float>(GetMouseY())
+            );
+            if (grid_.inBounds(cell.x, cell.y)) {
+                grid_.setTerrain(cell.x, cell.y, TerrainType::Open);
+            }
         }
     }
-    // G + left click: set goal position
-    else if (IsKeyDown(KEY_G) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-        Vec2i cell = coords_.screenToGrid(
-            static_cast<float>(GetMouseX()),
-            static_cast<float>(GetMouseY())
-        );
-        if (grid_.inBounds(cell.x, cell.y) && grid_.isWalkable(cell.x, cell.y) && cell != start_) {
-            goal_ = cell;
+
+    if (!imguiKeyboard) {
+        // Space: run animated pathfinder
+        if (IsKeyPressed(KEY_SPACE)) {
+            animator_.start(grid_, start_, goal_);
+            resultCaptured_ = false;
         }
-    }
-    // Left click: paint terrain with current brush
-    else if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-        Vec2i cell = coords_.screenToGrid(
-            static_cast<float>(GetMouseX()),
-            static_cast<float>(GetMouseY())
-        );
-        if (grid_.inBounds(cell.x, cell.y) && cell != start_ && cell != goal_) {
-            grid_.setTerrain(cell.x, cell.y, currentBrush_);
+
+        // Enter: instant solve (no animation)
+        if (IsKeyPressed(KEY_ENTER)) {
+            animator_.reset();
+            lastResult_ = currentPathfinder_->findPath(grid_, start_, goal_);
+            resultCaptured_ = true;
         }
-    }
 
-    // Right click: erase to open
-    if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
-        Vec2i cell = coords_.screenToGrid(
-            static_cast<float>(GetMouseX()),
-            static_cast<float>(GetMouseY())
-        );
-        if (grid_.inBounds(cell.x, cell.y)) {
-            grid_.setTerrain(cell.x, cell.y, TerrainType::Open);
+        // R: reset
+        if (IsKeyPressed(KEY_R)) {
+            animator_.reset();
+            grid_.clear();
+            lastResult_ = PathResult{};
+            resultCaptured_ = false;
         }
-    }
 
-    // Space: run animated pathfinder
-    if (IsKeyPressed(KEY_SPACE)) {
-        animator_.start(grid_, start_, goal_);
-        resultCaptured_ = false;
-    }
-
-    // Enter: instant solve (no animation)
-    if (IsKeyPressed(KEY_ENTER)) {
-        animator_.reset();
-        lastResult_ = currentPathfinder_->findPath(grid_, start_, goal_);
-        resultCaptured_ = true;
-    }
-
-    // R: reset
-    if (IsKeyPressed(KEY_R)) {
-        animator_.reset();
-        grid_.clear();
-        lastResult_ = PathResult{};
-        resultCaptured_ = false;
-    }
-
-    // P: pause/unpause
-    if (IsKeyPressed(KEY_P)) {
-        animator_.setPaused(!animator_.isPaused());
+        // P: pause/unpause
+        if (IsKeyPressed(KEY_P)) {
+            animator_.setPaused(!animator_.isPaused());
+        }
     }
 
     // Handle UIOverlay reset button
@@ -131,6 +144,27 @@ void App::handleInput() {
         resultCaptured_ = false;
         overlay_.clearResetRequest();
     }
+
+    // Handle map changed (load/generate)
+    if (overlay_.mapChanged()) {
+        animator_.reset();
+        start_ = mapMeta_.start;
+        goal_ = mapMeta_.goal;
+        ensureStartGoalWalkable();
+        lastResult_ = PathResult{};
+        resultCaptured_ = false;
+        overlay_.clearMapChanged();
+    }
+
+    // Handle benchmark request
+    if (overlay_.benchmarkRequested()) {
+        benchRunner_.run(grid_, start_, goal_, algorithms_);
+        overlay_.clearBenchmarkRequest();
+    }
+
+    // Keep mapMeta in sync with start/goal
+    mapMeta_.start = start_;
+    mapMeta_.goal = goal_;
 }
 
 void App::update() {
@@ -185,7 +219,14 @@ void App::draw() {
         animator_,
         algorithms_,
         currentAlgorithmIndex_,
-        currentBrush_
+        currentBrush_,
+        mapEditor_,
+        mapMeta_,
+        benchRunner_,
+        scenarioMgr_,
+        grid_,
+        start_,
+        goal_
     );
     rlImGuiEnd();
 
@@ -308,4 +349,21 @@ void App::generateTestMap() {
     };
     for (auto& s : pond)
         for (int x = s.x0; x <= s.x1; ++x) set(x, s.y, TerrainType::Water);
+}
+
+void App::ensureStartGoalWalkable() {
+    // Clamp to bounds
+    if (!grid_.inBounds(start_.x, start_.y)) {
+        start_ = {1, 1};
+    }
+    if (!grid_.inBounds(goal_.x, goal_.y)) {
+        goal_ = {grid_.getWidth() - 2, grid_.getHeight() - 2};
+    }
+    // Force start/goal cells to Open if they became impassable
+    if (!grid_.isWalkable(start_.x, start_.y)) {
+        grid_.setTerrain(start_.x, start_.y, TerrainType::Open);
+    }
+    if (!grid_.isWalkable(goal_.x, goal_.y)) {
+        grid_.setTerrain(goal_.x, goal_.y, TerrainType::Open);
+    }
 }

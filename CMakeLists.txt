@@ -94,6 +94,7 @@ add_executable(pathfinder
     src/Visualization/UIOverlay.cpp
     src/MapEditor/MapEditor.cpp
     src/Benchmarking/BenchmarkRunner.cpp
+    src/Scenarios/ScenarioManager.cpp
 )
 
 target_include_directories(pathfinder PRIVATE ${CMAKE_SOURCE_DIR}/src)
