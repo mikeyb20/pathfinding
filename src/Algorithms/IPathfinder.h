@@ -16,4 +16,6 @@ public:
     virtual void initSearch(const Grid& grid, Vec2i start, Vec2i goal) = 0;
     virtual bool step() = 0; // returns false when done
     virtual const SearchState& getCurrentState() const = 0;
+
+    virtual void setDiagonalMovement(bool enabled) { (void)enabled; }
 };

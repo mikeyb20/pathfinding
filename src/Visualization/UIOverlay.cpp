@@ -21,7 +21,10 @@ void UIOverlay::shutdown() {
 void UIOverlay::drawPathfindingTab(const std::string& algorithmName, const SearchState& state,
                                    const PathResult& lastResult, AlgorithmAnimator& animator,
                                    const std::vector<IPathfinder*>& algorithms, int currentIndex,
-                                   TerrainType currentBrush) {
+                                   TerrainType currentBrush, int currentHeuristicIndex, bool use8Dir,
+                                   bool compareMode, int compAlgorithmIndex,
+                                   const PathResult& compResult, const SearchState& compState,
+                                   bool compFinished) {
     // Algorithm combo box
     if (ImGui::BeginCombo("Algorithm", algorithmName.c_str())) {
         for (int i = 0; i < static_cast<int>(algorithms.size()); ++i) {
@@ -36,6 +39,53 @@ void UIOverlay::drawPathfindingTab(const std::string& algorithmName, const Searc
             }
         }
         ImGui::EndCombo();
+    }
+
+    // Heuristic combo — only shown when A* is selected
+    if (algorithmName == "A*") {
+        static const char* heuristicNames[] = {"Manhattan", "Euclidean", "Octile", "Chebyshev"};
+        int hIdx = currentHeuristicIndex;
+        if (ImGui::Combo("Heuristic", &hIdx, heuristicNames, 4)) {
+            if (hIdx != currentHeuristicIndex) {
+                requestedHeuristic_ = hIdx;
+            }
+        }
+    }
+
+    // 8-directional toggle
+    bool diag = use8Dir;
+    if (ImGui::Checkbox("8-directional", &diag)) {
+        diagToggled_ = true;
+    }
+    if (use8Dir && algorithmName == "A*" && currentHeuristicIndex != 2) {
+        ImGui::SameLine();
+        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "(Octile recommended)");
+    }
+
+    // Compare mode toggle
+    bool comp = compareMode;
+    if (ImGui::Checkbox("Compare", &comp)) {
+        compareModeChanged_ = true;
+        compareModeValue_ = comp;
+    }
+
+    // Second algorithm combo when compare mode is on
+    if (compareMode) {
+        const char* compName = (compAlgorithmIndex >= 0 && compAlgorithmIndex < static_cast<int>(algorithms.size()))
+                               ? algorithms[compAlgorithmIndex]->getName().c_str() : "Select...";
+        if (ImGui::BeginCombo("Compare with", compName)) {
+            for (int i = 0; i < static_cast<int>(algorithms.size()); ++i) {
+                if (i == currentIndex) continue; // exclude primary
+                bool isSelected = (i == compAlgorithmIndex);
+                if (ImGui::Selectable(algorithms[i]->getName().c_str(), isSelected)) {
+                    if (i != compAlgorithmIndex) {
+                        requestedCompAlgorithm_ = i;
+                    }
+                }
+                if (isSelected) ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
     }
 
     ImGui::Separator();
@@ -54,10 +104,26 @@ void UIOverlay::drawPathfindingTab(const std::string& algorithmName, const Searc
     }
 
     ImGui::Separator();
-    ImGui::Text("Last result:");
+    ImGui::Text("Primary result:");
     ImGui::Text("  Cost:     %.2f", lastResult.totalCost);
     ImGui::Text("  Expanded: %d", lastResult.nodesExpanded);
     ImGui::Text("  Time:     %.3f ms", lastResult.computeTimeMs);
+
+    // Comparison stats
+    if (compareMode && compAlgorithmIndex >= 0) {
+        ImGui::Separator();
+        ImGui::Text("Compare result:");
+        ImGui::Text("  Cost:     %.2f", compResult.totalCost);
+        ImGui::Text("  Expanded: %d", compResult.nodesExpanded);
+        ImGui::Text("  Time:     %.3f ms", compResult.computeTimeMs);
+        if (compFinished) {
+            if (compState.pathFound) {
+                ImGui::TextColored(ImVec4(0, 0.84f, 1, 1), "Path found (compare)");
+            } else {
+                ImGui::TextColored(ImVec4(1, 0.5f, 0, 1), "No path (compare)");
+            }
+        }
+    }
 
     // Terrain brush indicator
     ImGui::Separator();
@@ -96,7 +162,10 @@ void UIOverlay::drawPathfindingTab(const std::string& algorithmName, const Searc
 void UIOverlay::draw(const std::string& algorithmName, const SearchState& state,
                      const PathResult& lastResult, AlgorithmAnimator& animator,
                      const std::vector<IPathfinder*>& algorithms, int currentIndex,
-                     TerrainType currentBrush,
+                     TerrainType currentBrush, int currentHeuristicIndex, bool use8Dir,
+                     bool compareMode, int compAlgorithmIndex,
+                     const PathResult& compResult, const SearchState& compState,
+                     bool compFinished,
                      MapEditor& mapEditor, MapMetadata& mapMeta,
                      BenchmarkRunner& benchRunner, ScenarioManager& scenarioMgr,
                      Grid& grid, Vec2i& start, Vec2i& goal) {
@@ -111,7 +180,10 @@ void UIOverlay::draw(const std::string& algorithmName, const SearchState& state,
     if (ImGui::BeginTabBar("MainTabs")) {
         if (ImGui::BeginTabItem("Search")) {
             drawPathfindingTab(algorithmName, state, lastResult, animator,
-                               algorithms, currentIndex, currentBrush);
+                               algorithms, currentIndex, currentBrush,
+                               currentHeuristicIndex, use8Dir,
+                               compareMode, compAlgorithmIndex,
+                               compResult, compState, compFinished);
             ImGui::EndTabItem();
         }
 

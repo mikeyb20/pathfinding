@@ -51,11 +51,15 @@ bool AStar::step() {
     }
 
     // Expand neighbors
-    auto neighbors = grid_->getNeighbors4(current.x, current.y);
+    auto neighbors = use8Dir_ ? grid_->getNeighbors8(current.x, current.y)
+                              : grid_->getNeighbors4(current.x, current.y);
     for (const auto& neighbor : neighbors) {
         if (closed_.count(neighbor)) continue;
 
-        float newG = gCost_[current] + grid_->getCell(neighbor.x, neighbor.y).movementCost;
+        float moveCost = grid_->getCell(neighbor.x, neighbor.y).movementCost;
+        if (use8Dir_ && neighbor.x != current.x && neighbor.y != current.y)
+            moveCost *= 1.41421356f;
+        float newG = gCost_[current] + moveCost;
         auto it = gCost_.find(neighbor);
         if (it == gCost_.end() || newG < it->second) {
             gCost_[neighbor] = newG;

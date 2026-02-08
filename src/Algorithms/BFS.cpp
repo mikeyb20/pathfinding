@@ -40,7 +40,8 @@ bool BFS::step() {
     }
 
     // Expand neighbors
-    auto neighbors = grid_->getNeighbors4(current.x, current.y);
+    auto neighbors = use8Dir_ ? grid_->getNeighbors8(current.x, current.y)
+                              : grid_->getNeighbors4(current.x, current.y);
     for (const auto& neighbor : neighbors) {
         if (visited_.find(neighbor) == visited_.end()) {
             visited_.insert(neighbor);

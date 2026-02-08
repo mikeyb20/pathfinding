@@ -20,12 +20,26 @@ public:
     const SearchState& getCurrentState() const override { return state_; }
 
     void setHeuristic(HeuristicFunc h) { heuristic_ = std::move(h); }
+    void setDiagonalMovement(bool enabled) override { use8Dir_ = enabled; }
+    int getHeuristicIndex() const { return heuristicIndex_; }
+    void setHeuristicByIndex(int idx) {
+        heuristicIndex_ = idx;
+        switch (idx) {
+            case 0: heuristic_ = Heuristics::manhattan; break;
+            case 1: heuristic_ = Heuristics::euclidean; break;
+            case 2: heuristic_ = Heuristics::octile; break;
+            case 3: heuristic_ = Heuristics::chebyshev; break;
+            default: heuristic_ = Heuristics::manhattan; heuristicIndex_ = 0; break;
+        }
+    }
 
 private:
     std::vector<Vec2i> reconstructPath() const;
     void rebuildFrontierSnapshot();
 
     HeuristicFunc heuristic_;
+    int heuristicIndex_ = 0;
+    bool use8Dir_ = false;
     SearchState state_;
     using PQEntry = std::pair<float, Vec2i>;
     struct PQCompare {

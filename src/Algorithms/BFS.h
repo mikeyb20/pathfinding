@@ -13,8 +13,10 @@ public:
     void initSearch(const Grid& grid, Vec2i start, Vec2i goal) override;
     bool step() override;
     const SearchState& getCurrentState() const override { return state_; }
+    void setDiagonalMovement(bool enabled) override { use8Dir_ = enabled; }
 
 private:
+    bool use8Dir_ = false;
     std::vector<Vec2i> reconstructPath() const;
 
     SearchState state_;

@@ -50,6 +50,17 @@ private:
     int currentAlgorithmIndex_ = 0;
     IPathfinder* currentPathfinder_ = &bfs_;
 
+    int currentHeuristicIndex_ = 0;
+    bool use8Dir_ = false;
+
+    // Comparison mode
+    bool compareMode_ = false;
+    int compAlgorithmIndex_ = -1;
+    IPathfinder* compPathfinder_ = nullptr;
+    AlgorithmAnimator compAnimator_;
+    PathResult compResult_;
+    bool compResultCaptured_ = false;
+
     TerrainType currentBrush_ = TerrainType::Wall;
 
     Vec2i start_{1, 1};

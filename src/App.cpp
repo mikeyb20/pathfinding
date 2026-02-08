@@ -52,6 +52,60 @@ void App::handleInput() {
         overlay_.clearAlgorithmRequest();
     }
 
+    // Heuristic switch from UI
+    int reqHeuristic = overlay_.getRequestedHeuristic();
+    if (reqHeuristic >= 0) {
+        aStar_.setHeuristicByIndex(reqHeuristic);
+        currentHeuristicIndex_ = aStar_.getHeuristicIndex();
+        animator_.reset();
+        lastResult_ = PathResult{};
+        resultCaptured_ = false;
+        overlay_.clearHeuristicRequest();
+    }
+
+    // 8-directional toggle from UI
+    if (overlay_.getDiagToggled()) {
+        use8Dir_ = !use8Dir_;
+        for (auto* algo : algorithms_) {
+            algo->setDiagonalMovement(use8Dir_);
+        }
+        if (compPathfinder_) {
+            compPathfinder_->setDiagonalMovement(use8Dir_);
+        }
+        animator_.reset();
+        compAnimator_.reset();
+        lastResult_ = PathResult{};
+        compResult_ = PathResult{};
+        resultCaptured_ = false;
+        compResultCaptured_ = false;
+        overlay_.clearDiagToggle();
+    }
+
+    // Compare mode toggle from UI
+    if (overlay_.getCompareModeChanged()) {
+        compareMode_ = overlay_.getCompareMode();
+        if (!compareMode_) {
+            compAnimator_.reset();
+            compPathfinder_ = nullptr;
+            compAlgorithmIndex_ = -1;
+            compResult_ = PathResult{};
+            compResultCaptured_ = false;
+        }
+        overlay_.clearCompareModeChanged();
+    }
+
+    // Comparison algorithm switch from UI
+    int reqComp = overlay_.getRequestedCompAlgorithm();
+    if (reqComp >= 0) {
+        compAlgorithmIndex_ = reqComp;
+        compPathfinder_ = algorithms_[reqComp];
+        compAnimator_.reset();
+        compAnimator_.setPathfinder(compPathfinder_);
+        compResult_ = PathResult{};
+        compResultCaptured_ = false;
+        overlay_.clearCompAlgorithmRequest();
+    }
+
     bool imguiMouse = ImGui::GetIO().WantCaptureMouse;
     bool imguiKeyboard = ImGui::GetIO().WantCaptureKeyboard;
 
@@ -113,6 +167,10 @@ void App::handleInput() {
         if (IsKeyPressed(KEY_SPACE)) {
             animator_.start(grid_, start_, goal_);
             resultCaptured_ = false;
+            if (compareMode_ && compPathfinder_) {
+                compAnimator_.start(grid_, start_, goal_);
+                compResultCaptured_ = false;
+            }
         }
 
         // Enter: instant solve (no animation)
@@ -120,14 +178,22 @@ void App::handleInput() {
             animator_.reset();
             lastResult_ = currentPathfinder_->findPath(grid_, start_, goal_);
             resultCaptured_ = true;
+            if (compareMode_ && compPathfinder_) {
+                compAnimator_.reset();
+                compResult_ = compPathfinder_->findPath(grid_, start_, goal_);
+                compResultCaptured_ = true;
+            }
         }
 
         // R: reset
         if (IsKeyPressed(KEY_R)) {
             animator_.reset();
+            compAnimator_.reset();
             grid_.clear();
             lastResult_ = PathResult{};
+            compResult_ = PathResult{};
             resultCaptured_ = false;
+            compResultCaptured_ = false;
         }
 
         // P: pause/unpause
@@ -139,20 +205,26 @@ void App::handleInput() {
     // Handle UIOverlay reset button
     if (overlay_.resetRequested()) {
         animator_.reset();
+        compAnimator_.reset();
         grid_.clear();
         lastResult_ = PathResult{};
+        compResult_ = PathResult{};
         resultCaptured_ = false;
+        compResultCaptured_ = false;
         overlay_.clearResetRequest();
     }
 
     // Handle map changed (load/generate)
     if (overlay_.mapChanged()) {
         animator_.reset();
+        compAnimator_.reset();
         start_ = mapMeta_.start;
         goal_ = mapMeta_.goal;
         ensureStartGoalWalkable();
         lastResult_ = PathResult{};
+        compResult_ = PathResult{};
         resultCaptured_ = false;
+        compResultCaptured_ = false;
         overlay_.clearMapChanged();
     }
 
@@ -168,7 +240,8 @@ void App::handleInput() {
 }
 
 void App::update() {
-    animator_.update(GetFrameTime());
+    float dt = GetFrameTime();
+    animator_.update(dt);
 
     // Capture result when animation finishes
     if (animator_.isFinished() && !resultCaptured_) {
@@ -176,7 +249,6 @@ void App::update() {
         if (state.finished) {
             lastResult_.path = state.currentPath;
             lastResult_.nodesExpanded = static_cast<int>(state.visitedOrder.size());
-            // Compute actual weighted cost along the path
             if (state.pathFound && state.currentPath.size() > 1) {
                 float cost = 0.0f;
                 for (size_t i = 1; i < state.currentPath.size(); ++i) {
@@ -191,6 +263,31 @@ void App::update() {
             resultCaptured_ = true;
         }
     }
+
+    // Update comparison animator
+    if (compareMode_ && compPathfinder_) {
+        compAnimator_.update(dt);
+
+        if (compAnimator_.isFinished() && !compResultCaptured_) {
+            const auto& cstate = compAnimator_.getState();
+            if (cstate.finished) {
+                compResult_.path = cstate.currentPath;
+                compResult_.nodesExpanded = static_cast<int>(cstate.visitedOrder.size());
+                if (cstate.pathFound && cstate.currentPath.size() > 1) {
+                    float cost = 0.0f;
+                    for (size_t i = 1; i < cstate.currentPath.size(); ++i) {
+                        const auto& p = cstate.currentPath[i];
+                        cost += grid_.getCell(p.x, p.y).movementCost;
+                    }
+                    compResult_.totalCost = cost;
+                } else {
+                    compResult_.totalCost = 0.0f;
+                }
+                compResult_.visitedOrder = cstate.visitedOrder;
+                compResultCaptured_ = true;
+            }
+        }
+    }
 }
 
 void App::draw() {
@@ -199,18 +296,37 @@ void App::draw() {
 
     renderer_.drawGrid(grid_, coords_);
     renderer_.drawSearchOverlay(animator_.getState(), coords_);
+
+    // Comparison overlay
+    if (compareMode_ && compPathfinder_) {
+        renderer_.drawCompSearchOverlay(compAnimator_.getState(), coords_);
+    }
+
     renderer_.drawStartGoal(start_, goal_, coords_);
 
     // Show path from animated search
     if (animator_.isFinished() && animator_.getState().pathFound) {
         renderer_.drawPath(animator_.getState().currentPath, coords_);
     }
-    // Show path from instant solve (when no animation was run)
     else if (!animator_.isRunning() && resultCaptured_ && lastResult_.found()) {
         renderer_.drawPath(lastResult_.path, coords_);
     }
 
+    // Show comparison path
+    if (compareMode_ && compPathfinder_) {
+        if (compAnimator_.isFinished() && compAnimator_.getState().pathFound) {
+            renderer_.drawCompPath(compAnimator_.getState().currentPath, coords_);
+        } else if (!compAnimator_.isRunning() && compResultCaptured_ && compResult_.found()) {
+            renderer_.drawCompPath(compResult_.path, coords_);
+        }
+    }
+
     // ImGui overlay
+    static SearchState emptyState;
+    const SearchState& compState = (compareMode_ && compPathfinder_)
+        ? compAnimator_.getState() : emptyState;
+    bool compFinished = (compareMode_ && compPathfinder_) && compAnimator_.isFinished();
+
     rlImGuiBegin();
     overlay_.draw(
         currentPathfinder_->getName(),
@@ -220,6 +336,13 @@ void App::draw() {
         algorithms_,
         currentAlgorithmIndex_,
         currentBrush_,
+        currentHeuristicIndex_,
+        use8Dir_,
+        compareMode_,
+        compAlgorithmIndex_,
+        compResult_,
+        compState,
+        compFinished,
         mapEditor_,
         mapMeta_,
         benchRunner_,

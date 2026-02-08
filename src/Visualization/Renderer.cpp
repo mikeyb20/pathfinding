@@ -80,6 +80,45 @@ void Renderer::drawSearchOverlay(const SearchState& state, const CoordinateSyste
     }
 }
 
+void Renderer::drawCompSearchOverlay(const SearchState& state, const CoordinateSystem& coords) {
+    float cellSize = coords.getCellSize();
+    float pad = 1.0f;
+
+    // Visited nodes — light orange
+    for (const auto& v : state.visitedOrder) {
+        Vec2f pos = coords.gridToScreen(v);
+        DrawRectangle(
+            static_cast<int>(pos.x + pad), static_cast<int>(pos.y + pad),
+            static_cast<int>(cellSize - 2 * pad), static_cast<int>(cellSize - 2 * pad),
+            {230, 180, 140, 160}
+        );
+    }
+
+    // Frontier nodes — light pink
+    for (const auto& f : state.frontier) {
+        Vec2f pos = coords.gridToScreen(f);
+        DrawRectangle(
+            static_cast<int>(pos.x + pad), static_cast<int>(pos.y + pad),
+            static_cast<int>(cellSize - 2 * pad), static_cast<int>(cellSize - 2 * pad),
+            {238, 180, 180, 180}
+        );
+    }
+}
+
+void Renderer::drawCompPath(const std::vector<Vec2i>& path, const CoordinateSystem& coords) {
+    float cellSize = coords.getCellSize();
+    float pad = 2.0f;
+
+    for (const auto& p : path) {
+        Vec2f pos = coords.gridToScreen(p);
+        DrawRectangle(
+            static_cast<int>(pos.x + pad), static_cast<int>(pos.y + pad),
+            static_cast<int>(cellSize - 2 * pad), static_cast<int>(cellSize - 2 * pad),
+            {0, 215, 255, 220} // cyan
+        );
+    }
+}
+
 void Renderer::drawStartGoal(Vec2i start, Vec2i goal, const CoordinateSystem& coords) {
     float cellSize = coords.getCellSize();
 
