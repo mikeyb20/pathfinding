@@ -1,11 +1,13 @@
 #pragma once
 
-#include <memory>
+#include <vector>
 #include "Core/Grid.h"
 #include "Core/CoordinateSystem.h"
 #include "Core/PathResult.h"
 #include "Algorithms/IPathfinder.h"
 #include "Algorithms/BFS.h"
+#include "Algorithms/Dijkstra.h"
+#include "Algorithms/AStar.h"
 #include "Visualization/Renderer.h"
 #include "Visualization/AlgorithmAnimator.h"
 #include "Visualization/UIOverlay.h"
@@ -20,6 +22,8 @@ private:
     void handleInput();
     void update();
     void draw();
+    void switchAlgorithm(int index);
+    void generateTestMap();
 
     static constexpr int WINDOW_WIDTH = 1280;
     static constexpr int WINDOW_HEIGHT = 720;
@@ -33,9 +37,16 @@ private:
     AlgorithmAnimator animator_;
     UIOverlay overlay_;
     PathResult lastResult_;
+    bool resultCaptured_ = false;
 
     BFS bfs_;
+    Dijkstra dijkstra_;
+    AStar aStar_;
+    std::vector<IPathfinder*> algorithms_;
+    int currentAlgorithmIndex_ = 0;
     IPathfinder* currentPathfinder_ = &bfs_;
+
+    TerrainType currentBrush_ = TerrainType::Wall;
 
     Vec2i start_{1, 1};
     Vec2i goal_{GRID_WIDTH - 2, GRID_HEIGHT - 2};

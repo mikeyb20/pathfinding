@@ -88,6 +88,7 @@ add_executable(pathfinder
     src/Core/CoordinateSystem.cpp
     src/Algorithms/BFS.cpp
     src/Algorithms/Dijkstra.cpp
+    src/Algorithms/AStar.cpp
     src/Visualization/Renderer.cpp
     src/Visualization/AlgorithmAnimator.cpp
     src/Visualization/UIOverlay.cpp

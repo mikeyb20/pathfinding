@@ -8,6 +8,7 @@ void AlgorithmAnimator::start(const Grid& grid, Vec2i start, Vec2i goal) {
     if (!pathfinder_) return;
     pathfinder_->initSearch(grid, start, goal);
     running_ = true;
+    hasSearchData_ = true;
     paused_ = false;
     accumulator_ = 0.0f;
 }
@@ -32,15 +33,16 @@ void AlgorithmAnimator::reset() {
     running_ = false;
     paused_ = false;
     accumulator_ = 0.0f;
+    hasSearchData_ = false;
 }
 
 bool AlgorithmAnimator::isFinished() const {
-    if (!pathfinder_) return true;
+    if (!pathfinder_ || !hasSearchData_) return false;
     return !running_ && pathfinder_->getCurrentState().finished;
 }
 
 const SearchState& AlgorithmAnimator::getState() const {
     static SearchState empty;
-    if (!pathfinder_) return empty;
+    if (!pathfinder_ || !hasSearchData_) return empty;
     return pathfinder_->getCurrentState();
 }

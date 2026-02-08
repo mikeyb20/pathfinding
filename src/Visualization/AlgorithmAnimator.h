@@ -25,4 +25,5 @@ private:
     float accumulator_ = 0.0f;
     bool paused_ = false;
     bool running_ = false;
+    bool hasSearchData_ = false;
 };

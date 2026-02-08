@@ -1,19 +1,51 @@
 #include "Visualization/UIOverlay.h"
 #include "imgui.h"
 
+static const char* terrainName(TerrainType t) {
+    switch (t) {
+        case TerrainType::Wall:   return "Wall";
+        case TerrainType::Water:  return "Water (5x)";
+        case TerrainType::Mud:    return "Mud (3x)";
+        case TerrainType::Forest: return "Forest (2x)";
+        case TerrainType::Open:   return "Open (1x)";
+    }
+    return "Unknown";
+}
+
 void UIOverlay::init() {
 }
 
 void UIOverlay::shutdown() {
 }
 
-void UIOverlay::draw(const std::string& algorithmName, const SearchState& state, const PathResult& lastResult) {
-    ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(280, 180), ImGuiCond_FirstUseEver);
+void UIOverlay::draw(const std::string& algorithmName, const SearchState& state,
+                     const PathResult& lastResult, AlgorithmAnimator& animator,
+                     const std::vector<IPathfinder*>& algorithms, int currentIndex,
+                     TerrainType currentBrush) {
+    ImGui::SetNextWindowPos(ImVec2(1000, 0));
+    ImGui::SetNextWindowSize(ImVec2(280, 720));
 
-    ImGui::Begin("Pathfinder Stats");
+    ImGui::Begin("Pathfinder Stats", nullptr,
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoCollapse);
 
-    ImGui::Text("Algorithm: %s", algorithmName.c_str());
+    // Algorithm combo box
+    if (ImGui::BeginCombo("Algorithm", algorithmName.c_str())) {
+        for (int i = 0; i < static_cast<int>(algorithms.size()); ++i) {
+            bool isSelected = (i == currentIndex);
+            if (ImGui::Selectable(algorithms[i]->getName().c_str(), isSelected)) {
+                if (i != currentIndex) {
+                    requestedAlgorithm_ = i;
+                }
+            }
+            if (isSelected) {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+
     ImGui::Separator();
 
     ImGui::Text("Nodes visited:  %zu", state.visitedOrder.size());
@@ -34,6 +66,39 @@ void UIOverlay::draw(const std::string& algorithmName, const SearchState& state,
     ImGui::Text("  Cost:     %.2f", lastResult.totalCost);
     ImGui::Text("  Expanded: %d", lastResult.nodesExpanded);
     ImGui::Text("  Time:     %.3f ms", lastResult.computeTimeMs);
+
+    // Terrain brush indicator
+    ImGui::Separator();
+    ImGui::Text("Brush: %s", terrainName(currentBrush));
+
+    // Controls
+    ImGui::Separator();
+    ImGui::Text("Controls");
+
+    float sps = animator.getStepsPerSecond();
+    if (ImGui::SliderFloat("Speed", &sps, 1.0f, 500.0f, "%.0f sps")) {
+        animator.setStepsPerSecond(sps);
+    }
+
+    bool paused = animator.isPaused();
+    if (ImGui::Button(paused ? "Play" : "Pause")) {
+        animator.setPaused(!paused);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Reset")) {
+        resetRequested_ = true;
+    }
+
+    // Keybind help
+    ImGui::Separator();
+    ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "Keybinds:");
+    ImGui::TextWrapped(
+        "Space: Run  |  Enter: Instant solve\n"
+        "P: Pause/Resume  |  R: Reset\n"
+        "S+Click: Set start  |  G+Click: Set goal\n"
+        "LMB: Draw brush  |  RMB: Erase\n"
+        "1: Wall  2: Water  3: Mud  4: Forest  5: Open"
+    );
 
     ImGui::End();
 }

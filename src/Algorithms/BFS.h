@@ -1,5 +1,8 @@
 #pragma once
 
+#include <queue>
+#include <unordered_set>
+#include <unordered_map>
 #include "Algorithms/IPathfinder.h"
 
 class BFS : public IPathfinder {
@@ -12,5 +15,14 @@ public:
     const SearchState& getCurrentState() const override { return state_; }
 
 private:
+    std::vector<Vec2i> reconstructPath() const;
+
     SearchState state_;
+
+    std::queue<Vec2i> queue_;
+    std::unordered_set<Vec2i, Vec2iHash> visited_;
+    std::unordered_map<Vec2i, Vec2i, Vec2iHash> parent_;
+    const Grid* grid_ = nullptr;
+    Vec2i start_;
+    Vec2i goal_;
 };

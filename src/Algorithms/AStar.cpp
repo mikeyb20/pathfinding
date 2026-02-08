@@ -1,8 +1,8 @@
-#include "Algorithms/Dijkstra.h"
+#include "Algorithms/AStar.h"
 #include <chrono>
 #include <algorithm>
 
-void Dijkstra::initSearch(const Grid& grid, Vec2i start, Vec2i goal) {
+void AStar::initSearch(const Grid& grid, Vec2i start, Vec2i goal) {
     state_ = SearchState{};
     grid_ = &grid;
     start_ = start;
@@ -15,14 +15,14 @@ void Dijkstra::initSearch(const Grid& grid, Vec2i start, Vec2i goal) {
     parent_.clear();
     inFrontier_.clear();
 
-    // Seed with start node
+    // Seed with start node (f = 0 + h)
     gCost_[start] = 0.0f;
-    pq_.push({0.0f, start});
+    pq_.push({heuristic_(start, goal), start});
     inFrontier_.insert(start);
     state_.frontier = {start};
 }
 
-bool Dijkstra::step() {
+bool AStar::step() {
     // Skip already-closed nodes (lazy deletion)
     while (!pq_.empty() && closed_.count(pq_.top().second)) {
         inFrontier_.erase(pq_.top().second);
@@ -35,7 +35,7 @@ bool Dijkstra::step() {
         return false;
     }
 
-    auto [cost, current] = pq_.top();
+    auto [fCost, current] = pq_.top();
     pq_.pop();
     inFrontier_.erase(current);
     closed_.insert(current);
@@ -55,12 +55,13 @@ bool Dijkstra::step() {
     for (const auto& neighbor : neighbors) {
         if (closed_.count(neighbor)) continue;
 
-        float newCost = gCost_[current] + grid_->getCell(neighbor.x, neighbor.y).movementCost;
+        float newG = gCost_[current] + grid_->getCell(neighbor.x, neighbor.y).movementCost;
         auto it = gCost_.find(neighbor);
-        if (it == gCost_.end() || newCost < it->second) {
-            gCost_[neighbor] = newCost;
+        if (it == gCost_.end() || newG < it->second) {
+            gCost_[neighbor] = newG;
             parent_[neighbor] = current;
-            pq_.push({newCost, neighbor});
+            float f = newG + heuristic_(neighbor, goal_);
+            pq_.push({f, neighbor});
             inFrontier_.insert(neighbor);
         }
     }
@@ -69,7 +70,7 @@ bool Dijkstra::step() {
     return true;
 }
 
-void Dijkstra::rebuildFrontierSnapshot() {
+void AStar::rebuildFrontierSnapshot() {
     state_.frontier.clear();
     state_.frontier.reserve(inFrontier_.size());
     for (const auto& v : inFrontier_) {
@@ -77,7 +78,7 @@ void Dijkstra::rebuildFrontierSnapshot() {
     }
 }
 
-std::vector<Vec2i> Dijkstra::reconstructPath() const {
+std::vector<Vec2i> AStar::reconstructPath() const {
     std::vector<Vec2i> path;
     Vec2i current = goal_;
     while (current != start_) {
@@ -91,7 +92,7 @@ std::vector<Vec2i> Dijkstra::reconstructPath() const {
     return path;
 }
 
-PathResult Dijkstra::findPath(const Grid& grid, Vec2i start, Vec2i goal) {
+PathResult AStar::findPath(const Grid& grid, Vec2i start, Vec2i goal) {
     auto t0 = std::chrono::high_resolution_clock::now();
 
     initSearch(grid, start, goal);
