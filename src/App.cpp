@@ -8,7 +8,7 @@ void App::init() {
     SetTargetFPS(60);
     rlImGuiSetup(true);
 
-    algorithms_ = {&bfs_, &dijkstra_, &aStar_};
+    algorithms_ = {&bfs_, &dijkstra_, &aStar_, &jps_};
     currentAlgorithmIndex_ = 0;
     currentPathfinder_ = algorithms_[0];
 
@@ -37,6 +37,21 @@ void App::shutdown() {
 void App::switchAlgorithm(int index) {
     if (index < 0 || index >= static_cast<int>(algorithms_.size())) return;
     animator_.reset();
+
+    // Auto-enable 8-dir when switching TO JPS
+    if (algorithms_[index]->getName() == "JPS" && currentPathfinder_->getName() != "JPS") {
+        prevUse8Dir_ = use8Dir_;
+        if (!use8Dir_) {
+            use8Dir_ = true;
+            for (auto* algo : algorithms_) algo->setDiagonalMovement(true);
+        }
+    }
+    // Restore prior 8-dir setting when switching AWAY from JPS
+    else if (currentPathfinder_->getName() == "JPS" && algorithms_[index]->getName() != "JPS") {
+        use8Dir_ = prevUse8Dir_;
+        for (auto* algo : algorithms_) algo->setDiagonalMovement(use8Dir_);
+    }
+
     currentAlgorithmIndex_ = index;
     currentPathfinder_ = algorithms_[index];
     animator_.setPathfinder(currentPathfinder_);

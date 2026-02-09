@@ -57,6 +57,11 @@ void UIOverlay::drawPathfindingTab(const std::string& algorithmName, const Searc
     if (ImGui::Checkbox("8-directional", &diag)) {
         diagToggled_ = true;
     }
+    if (algorithmName == "JPS") {
+        ImGui::SameLine();
+        ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "(always on for JPS)");
+        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "JPS ignores terrain weights");
+    }
     if (use8Dir && algorithmName == "A*" && currentHeuristicIndex != 2) {
         ImGui::SameLine();
         ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "(Octile recommended)");

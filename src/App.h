@@ -8,6 +8,7 @@
 #include "Algorithms/BFS.h"
 #include "Algorithms/Dijkstra.h"
 #include "Algorithms/AStar.h"
+#include "Algorithms/JumpPointSearch.h"
 #include "Visualization/Renderer.h"
 #include "Visualization/AlgorithmAnimator.h"
 #include "Visualization/UIOverlay.h"
@@ -46,12 +47,14 @@ private:
     BFS bfs_;
     Dijkstra dijkstra_;
     AStar aStar_;
+    JumpPointSearch jps_;
     std::vector<IPathfinder*> algorithms_;
     int currentAlgorithmIndex_ = 0;
     IPathfinder* currentPathfinder_ = &bfs_;
 
     int currentHeuristicIndex_ = 0;
     bool use8Dir_ = false;
+    bool prevUse8Dir_ = false;
 
     // Comparison mode
     bool compareMode_ = false;

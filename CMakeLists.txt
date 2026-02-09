@@ -89,6 +89,7 @@ add_executable(pathfinder
     src/Algorithms/BFS.cpp
     src/Algorithms/Dijkstra.cpp
     src/Algorithms/AStar.cpp
+    src/Algorithms/JumpPointSearch.cpp
     src/Visualization/Renderer.cpp
     src/Visualization/AlgorithmAnimator.cpp
     src/Visualization/UIOverlay.cpp
