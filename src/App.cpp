@@ -243,9 +243,9 @@ void App::handleInput() {
         overlay_.clearMapChanged();
     }
 
-    // Handle benchmark request
+    // Handle benchmark request (incremental — one algo per frame)
     if (overlay_.benchmarkRequested()) {
-        benchRunner_.run(grid_, start_, goal_, algorithms_);
+        benchRunner_.startRun(grid_, start_, goal_, algorithms_);
         overlay_.clearBenchmarkRequest();
     }
 
@@ -257,6 +257,11 @@ void App::handleInput() {
 void App::update() {
     float dt = GetFrameTime();
     animator_.update(dt);
+
+    // Drive incremental benchmark (one algorithm per frame)
+    if (benchRunner_.isRunning()) {
+        benchRunner_.tick();
+    }
 
     // Capture result when animation finishes
     if (animator_.isFinished() && !resultCaptured_) {
