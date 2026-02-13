@@ -170,45 +170,19 @@ std::vector<Vec2i> JumpPointSearch::identifySuccessors(Vec2i node) {
     return successors;
 }
 
-std::optional<Vec2i> JumpPointSearch::jump(Vec2i pos, int dx, int dy) {
-    int nx = pos.x + dx;
-    int ny = pos.y + dy;
+std::optional<Vec2i> JumpPointSearch::jumpCardinal(Vec2i pos, int dx, int dy) {
+    while (true) {
+        int nx = pos.x + dx;
+        int ny = pos.y + dy;
 
-    if (!grid_->inBounds(nx, ny) || !grid_->isWalkable(nx, ny))
-        return std::nullopt;
-
-    // Corner-cutting check for diagonals
-    if (dx != 0 && dy != 0) {
-        if (!grid_->isWalkable(pos.x + dx, pos.y) || !grid_->isWalkable(pos.x, pos.y + dy))
+        if (!grid_->inBounds(nx, ny) || !grid_->isWalkable(nx, ny))
             return std::nullopt;
-    }
 
-    Vec2i next = {nx, ny};
+        Vec2i next = {nx, ny};
+        if (next == goal_) return next;
 
-    if (next == goal_)
-        return next;
-
-    // Check for forced neighbors
-    if (dx != 0 && dy != 0) {
-        // Diagonal: forced if perpendicular blocked neighbor exists
-        // (x - dx, y) blocked and (x - dx, y + dy) walkable → forced
-        if ((!grid_->inBounds(nx - dx, ny) || !grid_->isWalkable(nx - dx, ny))
-            && grid_->inBounds(nx - dx, ny + dy) && grid_->isWalkable(nx - dx, ny + dy))
-            return next;
-        // (x, y - dy) blocked and (x + dx, y - dy) walkable → forced
-        if ((!grid_->inBounds(nx, ny - dy) || !grid_->isWalkable(nx, ny - dy))
-            && grid_->inBounds(nx + dx, ny - dy) && grid_->isWalkable(nx + dx, ny - dy))
-            return next;
-
-        // Diagonal: recursively jump in each cardinal component
-        if (jump(next, dx, 0))
-            return next;
-        if (jump(next, 0, dy))
-            return next;
-    } else {
-        // Cardinal
         if (dx != 0) {
-            // Horizontal: check y±1
+            // Horizontal: forced if y±1 blocked but diagonal ahead walkable
             if ((!grid_->inBounds(nx, ny - 1) || !grid_->isWalkable(nx, ny - 1))
                 && grid_->inBounds(nx + dx, ny - 1) && grid_->isWalkable(nx + dx, ny - 1))
                 return next;
@@ -216,7 +190,7 @@ std::optional<Vec2i> JumpPointSearch::jump(Vec2i pos, int dx, int dy) {
                 && grid_->inBounds(nx + dx, ny + 1) && grid_->isWalkable(nx + dx, ny + 1))
                 return next;
         } else {
-            // Vertical: check x±1
+            // Vertical: forced if x±1 blocked but diagonal ahead walkable
             if ((!grid_->inBounds(nx - 1, ny) || !grid_->isWalkable(nx - 1, ny))
                 && grid_->inBounds(nx - 1, ny + dy) && grid_->isWalkable(nx - 1, ny + dy))
                 return next;
@@ -224,10 +198,47 @@ std::optional<Vec2i> JumpPointSearch::jump(Vec2i pos, int dx, int dy) {
                 && grid_->inBounds(nx + 1, ny + dy) && grid_->isWalkable(nx + 1, ny + dy))
                 return next;
         }
-    }
 
-    // Continue jumping in the same direction
-    return jump(next, dx, dy);
+        pos = next;
+    }
+}
+
+std::optional<Vec2i> JumpPointSearch::jump(Vec2i pos, int dx, int dy) {
+    // Cardinal directions use the iterative helper directly
+    if (dx == 0 || dy == 0)
+        return jumpCardinal(pos, dx, dy);
+
+    // Diagonal direction: iterate with cardinal sub-scans at each step
+    while (true) {
+        int nx = pos.x + dx;
+        int ny = pos.y + dy;
+
+        if (!grid_->inBounds(nx, ny) || !grid_->isWalkable(nx, ny))
+            return std::nullopt;
+
+        // Corner-cutting check: both adjacent cardinal cells must be walkable
+        if (!grid_->isWalkable(pos.x + dx, pos.y) || !grid_->isWalkable(pos.x, pos.y + dy))
+            return std::nullopt;
+
+        Vec2i next = {nx, ny};
+        if (next == goal_) return next;
+
+        // Diagonal forced neighbor checks
+        if ((!grid_->inBounds(nx - dx, ny) || !grid_->isWalkable(nx - dx, ny))
+            && grid_->inBounds(nx - dx, ny + dy) && grid_->isWalkable(nx - dx, ny + dy))
+            return next;
+        if ((!grid_->inBounds(nx, ny - dy) || !grid_->isWalkable(nx, ny - dy))
+            && grid_->inBounds(nx + dx, ny - dy) && grid_->isWalkable(nx + dx, ny - dy))
+            return next;
+
+        // Cardinal sub-scans (iterative, no recursion)
+        if (jumpCardinal(next, dx, 0))
+            return next;
+        if (jumpCardinal(next, 0, dy))
+            return next;
+
+        pos = next;
+    }
 }
 
 std::vector<Vec2i> JumpPointSearch::reconstructPath() const {

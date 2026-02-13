@@ -25,6 +25,7 @@ public:
 private:
     std::vector<Vec2i> identifySuccessors(Vec2i node);
     std::optional<Vec2i> jump(Vec2i pos, int dx, int dy);
+    std::optional<Vec2i> jumpCardinal(Vec2i pos, int dx, int dy);
     std::vector<Vec2i> reconstructPath() const;
     void rebuildFrontierSnapshot();
 
